@@ -1,0 +1,30 @@
+{
+  "name": "rhobust",
+  "version": "0.1.1",
+  "description": "Rhobust: Solid smart contracts tackling our economies' deepest challenges",
+  "main": "server.js",
+  "scripts": {
+    "test": "rnode deploy --from 0x0 --nonce 0 --phlo-price 1 --phlo-limit 999999 integrationTest.rho && rnode propose",
+    "deploy-contract": "rnode deploy --from 0x0 --nonce 0 --phlo-price 1 --phlo-limit 999999 rhobustCaller.rho && rnode propose",
+    "with-nodemon": "nodemon server.js"
+  },
+  "keywords": [
+    "RChain",
+    "Rholang",
+    "Dapp",
+    "RNode"
+  ],
+  "author": "Emmanuel BOTROS YOUSSEF FEISTHAUER",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mebyz/rhobust"
+  },
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.3",
+    "grpc": "^1.14.1",
+    "rchain-api": "github:rchain-community/RChain-API",
+    "freshr": "^0.2.0"
+  }
+}
