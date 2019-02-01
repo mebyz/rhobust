@@ -1,6 +1,6 @@
 // emmanuel.botros@gmail.com
 
-contract @"rhobustFactory"(rhobustId, @n) = {
+contract @"rhobustFactory"(rhobustContract, @n) = {
     new pay, invoiceId, invoiceAmount, invoiceName, processIncomeTax, widthdraw, taxPay,
     ri(`rho:registry:insertArbitrary`), 
     rl(`rho:registry:lookup`),
@@ -8,8 +8,9 @@ contract @"rhobustFactory"(rhobustId, @n) = {
     stdoutAck(`rho:io:stdoutAck`), ack, countCh, logResolve, logTransaction in {
        
         // Count state channel starts at one
-        countCh!(1)
-        |  
+        countCh!(1) | 
+        
+        // simple log method
         contract logResolve(@message, @oldCt, cb) = {
             stdout!(message)
             |  // <- concurrent
@@ -17,8 +18,9 @@ contract @"rhobustFactory"(rhobustId, @n) = {
             |  // <- concurrent
             countCh!(oldCt + 1)
         
-        }
-        |  
+        } |
+        
+        // simple log method
         contract logTransaction(@tid,@name,@amount,@message) = {
             stdout!(tid)
             |  // <- concurrent
@@ -27,9 +29,10 @@ contract @"rhobustFactory"(rhobustId, @n) = {
             stdout!(amount)
             |  // <- concurrent
             stdout!(message)
-        }
-        |  
-        contract rhobustId(@agentType, @secretKey, result) = {
+        } |
+
+        // rhobust contract
+        contract rhobustContract(@agentType, @secretKey, result) = {
             for(@oldCount <- countCh) {
                 if (agentType == "boss" and secretKey == "secretkey_employer") {
                     // agent A (Employer) has been identified
@@ -48,10 +51,13 @@ contract @"rhobustFactory"(rhobustId, @n) = {
                     // NOTHING happens otherwise
                 }
             }
-        }
-        | 
+        }|
+
         // when a payment occurs, these three actions are triggered .. CONCURRENTLY !!
         for(@paymentId <- invoiceId;@paymentName <- invoiceName;@amount <- invoiceAmount) {
+            
+            // required inputs have matched ! the payment has been done.
+            
             // agent B (Employee)
             widthdraw!(paymentId, paymentName, amount/2, *ack)
             |  // <- concurrent
@@ -60,73 +66,67 @@ contract @"rhobustFactory"(rhobustId, @n) = {
             |  // <- concurrent         
             // agent C (Tax Services)
         	processIncomeTax!(paymentId, paymentName, amount/2, *ack)      
-        }
-        | 
+        }|
+
         // agent A (Employer) behaviour : pay
         contract pay(pId, pName, pAmount, @name,@amount) = {
             new Y, H in {
               @"keccak256Hash"!(name.toByteArray(), *Y) 
                 |  // <- concurrent key generation and key receiver channel creation
               for (@H <- Y) { // we have a key
-              	pId!(H) | pName!(name) | pAmount!(amount) // fullfill the payment (3 processes are triggered concurrently)
+              	pId!(H) | pName!(name) | pAmount!(amount) // fullfill the payment (3 independent processes are spawned)
                 |  // <- concurrent
               	logTransaction!(H, name, amount," << salary payed ! (AGENT A)")
               }
         	}
-        } 
-        |  
+        } |
+
         // agent B (Employee) behaviour : widthdraw
         contract widthdraw(@uri,@name,@amount, result) = {
             new paymentIdLookupResponse in {
+                // todo : code the widthdraw of @amount salary 
               	logTransaction!(uri, name, amount, " << got payment. can widthdraw ! (AGENT B)")
             }
-        }
-        | 
+        }|
+
         // agent B (Employee) behaviour : taxPay
         contract taxPay(@uri,@name,@amount, result) = {
             new taxPaymentOut in {
+                // todo : code the payment of @amount of taxes
               	logTransaction!(uri, name, amount, " << tax payed ! (AGENT B)")
             }
-        }
-        |
+        }|
+
         // agent C (Tax Services) behaviour : processIncomeTax
         contract processIncomeTax(@uri,@name,@amount, result) = {
             new taxPaymentIn in {
+                // todo : code the income of @amount taxes 
               	logTransaction!(uri, name, amount, " << tax secured ! (AGENT C)")
             }
         }
     }
-}
-|  
+}|
+
 // myRhobustContractTEST : test rhobustFactory
 // This level of recursivity is only needed to simulate a sequential test.
 // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
 new myRhobustContractTEST, ack, stdoutAck(`rho:io:stdoutAck`) in {
-  stdoutAck!("TEST : Creating sample rhobust contract. 3 agents (employer, employee, IRS)", *ack)
-  |  // <- concurrent (log test start)
-  @"rhobustFactory"!(*myRhobustContractTEST, 3)
-  |  // <- concurrent (run test)
+  stdoutAck!("TEST : Creating sample rhobust contract", *ack) | 
+  @"rhobustFactory"!(*myRhobustContractTEST, 3) | 
   for(_ <- ack) {
-    myRhobustContractTEST!("Joe", "secretkey_employee", *ack)
-    |  // <- concurrent (callback)
+    myRhobustContractTEST!("Joe", "secretkey_employee", *ack) | 
     for(res <- ack) {
-      stdoutAck!(*res, *ack) 
-      |  // <- concurrent (callback)
+      stdoutAck!(*res, *ack) | 
       for(_ <- ack) {
-        myRhobustContractTEST!("irs", "secretkey_irs", *ack)
-        |  // <- concurrent (callback)
+        myRhobustContractTEST!("irs", "secretkey_irs", *ack) | 
         for(res <- ack) {
-          stdoutAck!(*res, *ack)   
-          |  // <- concurrent (callback)
+          stdoutAck!(*res, *ack) | 
           for(_ <- ack) {
-            myRhobustContractTEST!("boss", "secretkey_employer" , *ack) 
-            |  // <- concurrent (callback)
+            myRhobustContractTEST!("boss", "secretkey_employer" , *ack) | 
             for(res <- ack) {
-              stdoutAck!(*res, *ack)   
-              |  // <- concurrent (callback)
+              stdoutAck!(*res, *ack) | 
               for(_ <- ack) {
-                myRhobustContractTEST!("Sam", "dummy_key", *ack)
-                |  // <- concurrent (callback)
+                myRhobustContractTEST!("Sam", "dummy_key", *ack) | 
                 for(res <- ack) {
                   stdoutAck!(*res, *ack)
                 }
