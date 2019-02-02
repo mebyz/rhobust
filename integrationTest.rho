@@ -1,10 +1,10 @@
 /////////////////////////
-// myRhobustContractTEST : test rhobustFactory
+// myRhobustContractTEST : test rhobustFactory101
 new myRhobustContractTEST, ack, stdoutAck(`rho:io:stdoutAck`) in {
 
   stdoutAck!("TEST : Creating sample rhobust contract. 3 agents (employer, employee, IRS)", *ack)
     |  // <- concurrent (log test start)
-  @"rhobustFactory"!(*myRhobustContractTEST, 3)
+  @"rhobustFactory101"!(*myRhobustContractTEST, 3)
     |  // <- concurrent (run test)
   // This levels of recursivity is only needed to simulate a sequential test.
   // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.

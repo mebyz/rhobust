@@ -1,56 +1,43 @@
 // emmanuel.botros@gmail.com
 
-contract @"rhobustFactory"(rhobustContract, @n) = {
+contract @"rhobustFactory101"(rhobustContract, @n) = {
     new pay, invoiceId, invoiceAmount, invoiceName, processIncomeTax, widthdraw, taxPay,
     ri(`rho:registry:insertArbitrary`), 
     rl(`rho:registry:lookup`),
     stdout(`rho:io:stdout`),
     stdoutAck(`rho:io:stdoutAck`), ack, countCh, logResolve, logTransaction in {
-       
-        // Count state channel starts at one
-        countCh!(1) | 
         
         // simple log method
-        contract logResolve(@message, @oldCt, cb) = {
-            stdout!(message)
-            |  // <- concurrent
+        contract logResolve(@message, cb) = {
             cb!(message)
-            |  // <- concurrent
-            countCh!(oldCt + 1)
-        
         } |
         
         // simple log method
-        contract logTransaction(@tid,@name,@amount,@message) = {
-            stdout!(tid)
-            |  // <- concurrent
-            stdout!(name)
-            |  // <- concurrent
-            stdout!(amount)
-            |  // <- concurrent
-            stdout!(message)
+        contract logTransaction(@tid,@action,@nameWorker,@nameCurrentAgent,@amount,@message, cb) = {
+            cb!(["transaction id:",tid,"action:",action,"nameWorker:",nameWorker,"nameCurrentAgent:",nameCurrentAgent,"amount:",amount,"message:",message])
         } |
 
         // rhobust contract
         contract rhobustContract(@agentType, @secretKey, result) = {
-            for(@oldCount <- countCh) {
+            //countCh!(1) |
+            //for(@oldCount <- countCh) {
                 if (agentType == "boss" and secretKey == "secretkey_employer") {
                     // agent A (Employer) has been identified
-                    pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100)
+                    pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100, *result)
                     |  // <- concurrent
-                    logResolve!("Hello " ++ agentType ++ ", let's pay Joe. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, oldCount, *result)
+                    logResolve!("Hello " ++ agentType ++ ", let's pay Joe. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *result)
                 } else 
                 if (agentType == "Joe" and secretKey == "secretkey_employee") {
                     // agent B (Employee) has been identified
-                    logResolve!("Hello " ++ agentType ++ ", you will get payed soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, oldCount, *result)
+                    logResolve!("Hello " ++ agentType ++ ", you will get payed soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *result)
                 }  else 
                 if (agentType == "irs" and secretKey == "secretkey_irs") {
                     // agent C (IRS) has been identified
-                    logResolve!("Hello " ++ agentType ++ ", tax income will be transfered soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, oldCount, *result)
+                    logResolve!("Hello " ++ agentType ++ ", tax income will be transfered soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *result)
                 } else {
                     // NOTHING happens otherwise
                 }
-            }
+            //}
         }|
 
         // when a payment occurs, these three actions are triggered .. CONCURRENTLY !!
@@ -69,23 +56,24 @@ contract @"rhobustFactory"(rhobustContract, @n) = {
         }|
 
         // agent A (Employer) behaviour : pay
-        contract pay(pId, pName, pAmount, @name,@amount) = {
+        contract pay(pId, pName, pAmount, @name,@amount, result) = {
             new Y, H in {
               @"keccak256Hash"!(name.toByteArray(), *Y) 
                 |  // <- concurrent key generation and key receiver channel creation
               for (@H <- Y) { // we have a key
-              	pId!(H) | pName!(name) | pAmount!(amount) // fullfill the payment (3 independent processes are spawned)
-                |  // <- concurrent
-              	logTransaction!(H, name, amount," << salary payed ! (AGENT A)")
-              }
-        	}
+              	pId!(H) 
+              	|  // <- concurrent
+              	logTransaction!(H, "payment", name, "employer", amount," << salary payed ! (AGENT A)", *result)
+              }| 
+                pName!(name) | pAmount!(amount) | result!("ok") // fullfill the payment (3 independent processes are spawned)
+                }
         } |
 
         // agent B (Employee) behaviour : widthdraw
         contract widthdraw(@uri,@name,@amount, result) = {
             new paymentIdLookupResponse in {
                 // todo : code the widthdraw of @amount salary 
-              	logTransaction!(uri, name, amount, " << got payment. can widthdraw ! (AGENT B)")
+              	logTransaction!(uri, "withdraw", name, "employee", amount, " << got payment. can widthdraw ! (AGENT B)", *result)
             }
         }|
 
@@ -93,7 +81,7 @@ contract @"rhobustFactory"(rhobustContract, @n) = {
         contract taxPay(@uri,@name,@amount, result) = {
             new taxPaymentOut in {
                 // todo : code the payment of @amount of taxes
-              	logTransaction!(uri, name, amount, " << tax payed ! (AGENT B)")
+              	logTransaction!(uri, "tax_payment", name, "employee", amount, " << tax payed ! (AGENT B)", *result)
             }
         }|
 
@@ -101,18 +89,18 @@ contract @"rhobustFactory"(rhobustContract, @n) = {
         contract processIncomeTax(@uri,@name,@amount, result) = {
             new taxPaymentIn in {
                 // todo : code the income of @amount taxes 
-              	logTransaction!(uri, name, amount, " << tax secured ! (AGENT C)")
+              	logTransaction!(uri, "tax_income", name, "IRS", amount, " << tax secured ! (AGENT C)", *result)
             }
         }
     }
 }|
 
-// myRhobustContractTEST : test rhobustFactory
+// myRhobustContractTEST : test rhobustFactory101
 // This level of recursivity is only needed to simulate a sequential test.
 // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
 new myRhobustContractTEST, ack, stdoutAck(`rho:io:stdoutAck`) in {
   stdoutAck!("TEST : Creating sample rhobust contract", *ack) | 
-  @"rhobustFactory"!(*myRhobustContractTEST, 3) | 
+  @"rhobustFactory101"!(*myRhobustContractTEST, 3) | 
   for(_ <- ack) {
     myRhobustContractTEST!("Joe", "secretkey_employee", *ack) | 
     for(res <- ack) {
