@@ -1,6 +1,10 @@
 // emmanuel.botros@gmail.com
 
 new
+doubler,
+  uriChan,
+  contractCh,ct,
+
 stdout(`rho:io:stdout`),
 ri(`rho:registry:insertArbitrary`), 
 rl(`rho:registry:lookup`),
@@ -19,6 +23,8 @@ ackInfo,
 resInfo,
 ackRegister,
 resRegister,
+ackRl,
+resRl,
 ack, 
 pay, 
 invoiceId, 
@@ -29,70 +35,54 @@ widthdraw,
 taxPay, 
 logResolve, 
 uriChan,
-logTransaction
+uriChan2,
+uri2,
+logTransaction,resgettest,ackgettest,ct2,contractCh2
 in {
     
-    // RhobustContract
+    // TEST RhobustContract
     // This level of recursivity is only needed to simulate a sequential test.
     // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
     stdoutAck!("TEST : Creating sample rhobust contract", *ack) |
-    
     stdout!(["RhobustContract: ",*RhobustContract]) |
-    RhobustContract!("new",[Nil,{"title": "sample rhobust contract v1.0", "data": true},*ackContract]) |
-    for ( myContract <- ackContract) { 
-        myContract!("register", [*ackRegister]) |
-        for(resRegister <- ackRegister) {
-            stdout!(*resRegister)
-        }|
-        myContract!("get", ["title", *ackInfo]) |
-        for(resInfo <- ackInfo) {
-            stdout!(*resInfo)
-        } |
-        // simulate sequenctial agents actions (not very realistic ^^)
-        myContract!("identify", ["Joe","secretkey_employee", *ackJoe]) |
-        for(resJoe <- ackJoe) {
-            stdout!(*resJoe) |
-            myContract!("identify", ["irs","secretkey_irs", *ackIrs]) |
-            for(resIrs <- ackIrs) {
-                stdout!(*resIrs) |
-                myContract!("identify", ["boss","secretkey_employer", *ackBoss]) |
-                for(resBoss <- ackBoss) {
-                    stdout!(*resBoss)
-                    //payment done
+    // store the contracts
+    ri!(bundle+{*RhobustContract}  , *uriChan) |
+    // Wait for URI response
+    for(@uri <- uriChan) {
+        stdout!(uri) | 
+        // lookup again using uri
+        rl!(uri, *contractCh) |
+        for( ct <- contractCh) {
+            ct!("new",[Nil,{"title": uri, "data": true},*ackContract]) |
+            for ( myContract <- ackContract) { 
+                stdout!("OK")|
+                // store the instance of the contract
+                ri!(bundle+{*myContract}  , *uriChan2) |
+                // Wait for URI response
+                for(@uri2 <- uriChan2) {
+                    stdout!(uri2)|
+                    // lookup again using uri
+                     rl!(uri2, *contractCh2) |
+                     for( ct2 <- contractCh2) {
+                        stdout!(*ct2)|
+                        ct2!("identify", ["Joe","secretkey_employee", *ackJoe]) |
+                        for(resJoe <- ackJoe) {
+                            stdout!(*resJoe) |
+                            ct2!("identify", ["irs","secretkey_irs", *ackIrs]) |
+                            for(resIrs <- ackIrs) {
+                                stdout!(*resIrs) |
+                                ct2!("identify", ["boss","secretkey_employer", *ackBoss]) |
+                                for(resBoss <- ackBoss) {
+                                    stdout!(*resBoss)
+                                    //payment done
+                                }
+                            }
+                        }
+                     }
                 }
             }
-        }
+      }
     } |
-
-    contract Object(class, @instance, ret) = {
-        new this in {
-            ret!(bundle+{*this}) |
-            //instance methods
-            contract this(@method, args) = {
-                class!(instance, method, *args)
-            }
-        }
-    } |
-
-    // get the uri of this RhobustContract from the registry
-    contract RhobustContract(this, @"register", @[*ret]) = {
-        new RhobustContractChan, uriChan in {
-            for( @RhobustContract <- this) {
-                if (RhobustContract.get("uri") != Nil ) {
-                    stdout!(["RhobustContract",RhobustContract.get("uri")]) |
-                    ret!(RhobustContract.get("uri")) |
-                    this!(RhobustContract)
-                } else {
-                    ri!(*this, *uriChan) |
-                    for(@uri <- uriChan) {
-                        stdout!(["RhobustContract",uri]) |
-                        this!(RhobustContract.set("uri",uri)) |
-                        ret!(uri)
-                    }
-                }
-            }
-        }
-    } | 
     
     // class method to create a new RhobustContract
     contract RhobustContract(@"new", @[ 
@@ -115,6 +105,12 @@ in {
             this!(nod) |
             value!(nod.get("props").get(name))
         }
+    } |
+    // get a property value from this RhobustContract
+    contract RhobustContract(this, @"gettest", @[*ack]) = {
+        for (@nod <- this) {
+            ack!("ok ok ok ok")
+        }        
     } |
 
     // set a property value from this RhobustContract
@@ -147,7 +143,38 @@ in {
             }
         }
     } |
-
+    
+    // get the uri of this RhobustContract from the registry
+    contract RhobustContract(this, @"register", @[*ret]) = {
+        new RhobustContractChan, uriChan in {
+            for( @RhobustContract <- this) {
+                if (RhobustContract.get("uri") != Nil ) {
+                    stdout!(["RhobustContract",RhobustContract.get("uri")]) |
+                    ret!(RhobustContract.get("uri")) |
+                    this!(RhobustContract)
+                } else {
+                    ri!(*this, *uriChan) |
+                    for(@uri <- uriChan) {
+                        stdout!(["RhobustContract",uri]) |
+                        this!(RhobustContract.set("uri",uri)) |
+                        ret!(uri)
+                    }
+                }
+            }
+        }
+    } | 
+    
+    // Helper contract
+    contract Object(class, @instance, ret) = {
+        new this in {
+            ret!(bundle+{*this}) |
+            //instance methods
+            contract this(@method, args) = {
+                class!(instance, method, *args)
+            }
+        }
+    } |
+    
     // simple log method
     contract logResolve(@message, cb) = {
         cb!(message)
