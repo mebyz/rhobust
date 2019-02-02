@@ -37,51 +37,103 @@ logResolve,
 uriChan,
 uriChan2,
 uri2,
-logTransaction,resgettest,ackgettest,ct2,contractCh2
+logTransaction,resgettest,ackgettest,ct2,contractCh2,agentType,secretKey,
+resProc_Joe,ackProc_Joe,
+resProc_Irs,ackProc_Irs,
+resProc_Boss,ackProc_Boss,
+ackwithdraw,
+acktaxPay,
+ackprocessIncomeTax,
+RhobustContractSign,ackRhobustContractSign
 in {
     
-    // TEST RhobustContract
-    // This level of recursivity is only needed to simulate a sequential test.
-    // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
-    stdoutAck!("TEST : Creating sample rhobust contract", *ack) |
-    stdout!(["RhobustContract: ",*RhobustContract]) |
-    // store the contracts
-    ri!(bundle+{*RhobustContract}  , *uriChan) |
-    // Wait for URI response
-    for(@uri <- uriChan) {
-        stdout!(uri) | 
-        // lookup again using uri
-        rl!(uri, *contractCh) |
-        for( ct <- contractCh) {
-            ct!("new",[Nil,{"title": uri, "data": true},*ackContract]) |
-            for ( myContract <- ackContract) { 
-                stdout!("OK")|
-                // store the instance of the contract
-                ri!(bundle+{*myContract}  , *uriChan2) |
-                // Wait for URI response
-                for(@uri2 <- uriChan2) {
-                    stdout!(uri2)|
-                    // lookup again using uri
-                     rl!(uri2, *contractCh2) |
-                     for( ct2 <- contractCh2) {
-                        stdout!(*ct2)|
-                        ct2!("identify", ["Joe","secretkey_employee", *ackJoe]) |
-                        for(resJoe <- ackJoe) {
-                            stdout!(*resJoe) |
-                            ct2!("identify", ["irs","secretkey_irs", *ackIrs]) |
-                            for(resIrs <- ackIrs) {
-                                stdout!(*resIrs) |
-                                ct2!("identify", ["boss","secretkey_employer", *ackBoss]) |
-                                for(resBoss <- ackBoss) {
-                                    stdout!(*resBoss)
-                                    //payment done
-                                }
-                            }
-                        }
-                     }
+
+    contract @"rhobustFactory008"(rhobustCreation, @n, result) = {
+        new 
+        ri(`rho:registry:insertArbitrary`), 
+        rl(`rho:registry:lookup`) in {
+        // store the contracts
+        ri!(bundle+{*RhobustContract}  , *uriChan) |
+        // Wait for URI response
+        for(@uri <- uriChan) {
+            // lookup again using uri
+            rl!(uri, *contractCh) |
+            for( ct <- contractCh) {
+                ct!("new",[Nil,{"contract_id": uri, "data": true},*ackContract]) |
+                for ( myContract <- ackContract) { 
+                    // store the instance of the contract
+                    ri!(bundle+{*myContract}  , *uriChan2) |
+                    // Wait for URI response
+                    for(@uri2 <- uriChan2) {
+                        // send back the final contract instance uri
+                        result!(uri2)
+                    }
                 }
             }
-      }
+        }
+        }
+    } |
+
+    contract @"rhobustFactory008"(rhobustLookup, @uri, @action, @name, @key, resultLookup) = {
+//        resultLookup!(uri)
+        rl!(uri, *contractCh) |
+        for( ct <- contractCh) {
+           //resultLookup!(uri) 
+            //resultLookup!([ "OK", uri, action, name, key])
+            RhobustContractSign!(name, key, *ackRhobustContractSign) | 
+            for(@resRhobustContractSign <- ackRhobustContractSign) {
+                resultLookup!(resRhobustContractSign)
+            }
+        }
+
+    } |
+
+    // TEST RhobustContracts
+    // This level of recursivity is only needed to simulate sequential actions of each agent
+    // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
+    new myRhobustContractTEST, myRhobustContract_Joe , myRhobustContract_Irs , myRhobustContract_Boss, ack,
+    stdout(`rho:io:stdout`), stdoutAck(`rho:io:stdoutAck`) in {
+      stdout!("TEST STEP 1 : Creating sample rhobust contract") | 
+      @"rhobustFactory008"!(*myRhobustContractTEST, 3, *ack) |
+      for(@uri2 <- ack) {
+        //stdout!(uri2) |
+
+        // uri2 is sent to all 3 agents.
+
+        // Agent A (Joe) stores uri2 in a safe place
+        // Agent B (IRS) stores uri2 in a safe place
+        // Agent C (boss) stores uri2 in a safe place
+
+        
+        // Later on, agent A (Joe) logs in to sign the contract
+        // this results in a lookup in the tuplespace using uri
+        @"rhobustFactory008"!(*myRhobustContract_Joe, uri2,"sign", "Joe","secretkey_employee", *ackJoe) |
+        for(resJoe <- ackJoe) {
+            stdout!(*resJoe) |
+        
+                
+            
+            // Later on, agent B (irs) logs in to sign the contract
+            // this results in a lookup in the tuplespace using uri
+            @"rhobustFactory008"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
+            for(resIrs <- ackIrs) {
+                stdout!(*resIrs) | 
+                    
+                    
+                    
+                // Later on, agent C (boss) logs in to sign the contract
+                // this results in a lookup in the tuplespace using uri
+                @"rhobustFactory008"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
+                for(resBoss <- ackBoss){
+                    stdout!(*resBoss) 
+                    
+                    // identification done for boss
+                    // + payment done (lots of thing happened)
+                    
+                    }
+                }
+            }
+        }
     } |
     
     // class method to create a new RhobustContract
@@ -106,12 +158,6 @@ in {
             value!(nod.get("props").get(name))
         }
     } |
-    // get a property value from this RhobustContract
-    contract RhobustContract(this, @"gettest", @[*ack]) = {
-        for (@nod <- this) {
-            ack!("ok ok ok ok")
-        }        
-    } |
 
     // set a property value from this RhobustContract
     contract RhobustContract(this, @"set", @[name, value, *ack]) = {
@@ -122,25 +168,23 @@ in {
     } |
 
     // identify someone using RhobustContract
-    contract RhobustContract(this, @"identify", @[agentType, secretKey, *ack]) = {
-        for (@nod <- this) {
-            this!(nod) |
-            if (agentType == "boss" and secretKey == "secretkey_employer") {
-                // agent A (Employer) has been identified
-                pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100)
-                |  // <- concurrent
-                logResolve!("Hello " ++ agentType ++ ", let's pay Joe. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ack)
-            } else 
-            if (agentType == "Joe" and secretKey == "secretkey_employee") {
-                // agent B (Employee) has been identified
-                logResolve!("Hello " ++ agentType ++ ", you will get payed soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ack)
-            }  else 
-            if (agentType == "irs" and secretKey == "secretkey_irs") {
-                // agent C (IRS) has been identified
-                logResolve!("Hello " ++ agentType ++ ", tax income will be transfered soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ack)
-            } else {
-                // NOTHING happens otherwise
-            }
+    contract RhobustContractSign(@agentType, @secretKey, ackSign) = {
+    
+        if (agentType == "boss" and secretKey == "secretkey_employer") {
+            // agent A (Employer) has been identified
+            pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100)
+            |  // <- concurrent
+            logResolve!("Hello " ++ agentType ++ ", let's pay Joe. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackSign)
+        } else 
+        if (agentType == "Joe" and secretKey == "secretkey_employee") {
+            // agent B (Employee) has been identified
+            logResolve!("Hello " ++ agentType ++ ", you will get payed soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackSign)
+        }  else 
+        if (agentType == "irs" and secretKey == "secretkey_irs") {
+            // agent C (IRS) has been identified
+            logResolve!("Hello " ++ agentType ++ ", tax income will be transfered soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackSign)
+        } else {
+            // NOTHING happens otherwise
         }
     } |
     
@@ -182,21 +226,7 @@ in {
     
     // simple log methodH, "payment", name, "employer", amount," << salary payed ! (AGENT A)"
     contract logTransaction(@tid,@action,@nameWorker,@nameCurrentAgent,@amount,@message)= {
-        stdout!(["transaction id:",tid,"action:",action,"nameWorker:",nameWorker,"nameCurrentAgent:",nameCurrentAgent,"amount:",amount,"message:",message])
-    } |
-
-    // when a payment occurs, these three actions are triggered .. CONCURRENTLY !!
-    for(@paymentId <- invoiceId;@paymentName <- invoiceName;@amount <- invoiceAmount) {
-        // required inputs have matched ! the payment has been done.
-        
-        // agent B (Employee)
-        widthdraw!(paymentId, paymentName, amount/2, *ack)
-        |  // <- concurrent
-        // agent B (Employee)
-        taxPay!(paymentId, paymentName, amount/2, *ack)
-        |  // <- concurrent         
-        // agent C (Tax Services)
-        processIncomeTax!(paymentId, paymentName, amount/2, *ack)      
+        stdout!(["transaction id:",tid,"action:",action,"nameCurrentAgent:",nameCurrentAgent,"amount:",amount,"message:",message])
     } |
 
     // agent A (Employer) behaviour : pay
@@ -208,35 +238,59 @@ in {
         for (@H <- Y) { // we have a key
             logTransaction!(H, "payment", name, "employer", amount," << salary payed ! (AGENT A)")
             | 
-            pId!(H) | pName!(name) | pAmount!(amount) // fullfill the payment (4 independent processes are spawned)
+            // fullfill the payment (4 independent processes are spawned)
+            pId!(H) | pName!(name) | pAmount!(amount) |
+            
+            // when a payment occurs, these three actions are triggered .. CONCURRENTLY !!
+            for(@paymentId <- invoiceId;@paymentName <- invoiceName;@amount <- invoiceAmount) {
+                // required inputs have matched ! the payment has been done.
+                
+                // agent B (Employee)
+                widthdraw!(paymentId, paymentName, amount/2, *ackwithdraw) |
+                for(@wd <- ackwithdraw) {
+                    stdout!(wd)
+                }
+                |  // <- concurrent
+                // agent B (Employee)
+                taxPay!(paymentId, paymentName, amount/2, *acktaxPay) |
+                for(@tp <- acktaxPay) {
+                    stdout!(tp)
+                }
+                |  // <- concurrent         
+                // agent C (Tax Services)
+                processIncomeTax!(paymentId, paymentName, amount/2, *ackprocessIncomeTax) |
+                for(@it <- ackprocessIncomeTax) {
+                    stdout!(it)
+                }  
+            }
         }
             }
     } |
 
     // agent B (Employee) behaviour : widthdraw
-    contract widthdraw(@uri,@name,@amount, result) = {
+    contract widthdraw(@uri,@name,@amount, result_widthdraw) = {
         new paymentIdLookupResponse in {
             // todo : code the widthdraw of @amount salary 
             logTransaction!(uri, "withdraw", name, "employee", amount, " << got payment. can widthdraw ! (AGENT B)") |
-            result!("ok")
+            result_widthdraw!("ok_withdraw")
         }
     }|
 
     // agent B (Employee) behaviour : taxPay
-    contract taxPay(@uri,@name,@amount, result) = {
+    contract taxPay(@uri,@name,@amount, result_taxPay) = {
         new taxPaymentOut in {
             // todo : code the payment of @amount of taxes
             logTransaction!(uri, "tax_payment", name, "employee", amount, " << tax payed ! (AGENT B)") |
-            result!("ok")
+            result_taxPay!("ok_taxpay")
         }
     }|
 
     // agent C (Tax Services) behaviour : processIncomeTax
-    contract processIncomeTax(@uri,@name,@amount, result) = {
+    contract processIncomeTax(@uri,@name,@amount, result_processIncomeTax) = {
         new taxPaymentIn in {
             // todo : code the income of @amount taxes 
             logTransaction!(uri, "tax_income", name, "IRS", amount, " << tax secured ! (AGENT C)") |
-            result!("ok")
+            result_processIncomeTax!("ok_processtax")
         }
     }
 }

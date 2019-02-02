@@ -6,8 +6,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let newrhobustId = document.getElementById('new-rhobust-id')
   let n = document.getElementById('n')
   let callrhobustId = document.getElementById('call-rhobust-id')
+  let callrhobustUri = document.getElementById('call-rhobust-uri')
   let name = document.getElementById('name')
   let key = document.getElementById('key')
+  let resultR = document.getElementById('statusCreate')
   let resultP = document.getElementById('status')
 
   // Event Listeners
@@ -33,8 +35,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Actually send it
     makePost('/register', body)
-    .then(data => {
-      console.log(data.message)
+      .then(data => {
+        resultR.innerHTML = data.message
+        console.log(data.message)
     })
 
     // Clear the DOM to prevent double posts
@@ -55,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Setup the request
     let body = {
       id: callrhobustId.value,
+      uri: callrhobustUri.value,
       name: name.value,
       key: key.value,
     }

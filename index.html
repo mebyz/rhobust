@@ -10,15 +10,17 @@
   <p>Rhobust App</p>
 
   <h1>Register a new Rhobust contract</h1>
-  rhobust ID: <input id="new-rhobust-id" type="text" />
-  Winning Caller: <input id="n" type="number" />
+  rhobust ID: (aaa)<input id="new-rhobust-id" type="text" />
+  Number of contractors: <input id="n" type="number" />
   <button id="register">Register</button>
+  <p id="statusCreate"></p>
 
-  <h1>Sign on an existing Rhobust contract</h1>
-  rhobust ID: <input id="call-rhobust-id" type="text" />
-  Your Name: <input id="name" type="text" />
-  Your key: <input id="key" type="text" />
-  <button id="call">Call</button>
+  <h1>Identify on an existing Rhobust contract</h1>
+  rhobust ID: (aaa) <input id="call-rhobust-id" type="text" />
+  rhobust contract URI: (retrieved from registration step) <input id="call-rhobust-uri" type="text" />
+  Your Name: (try Joe)<input id="name" type="text" />
+  Your key: (try secretkey_employee) <input id="key" type="text" />
+  <button id="call">Send request</button>
   <p id="status"></p>
 
 </body>

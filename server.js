@@ -25,7 +25,10 @@ app.listen(uiPort, () => {
 
 // Handle users registering new rhobusts
 app.post('/register', (req, res) => {
-  let code = `@"rhobustFactory102"!("${req.body.id}", ${req.body.n})`
+
+  let ack = Math.random().toString(36).substring(7)
+  let code = `@"rhobustFactory008"!("${req.body.id}", ${req.body.n}, "${ack}")`
+  console.log(code)
   let deployData = {term: code,
                     timestamp: new Date().valueOf(),
                     phloLimit: 9999999,
@@ -36,9 +39,23 @@ app.post('/register', (req, res) => {
   myNode.doDeploy(deployData).then(result => {
     // Force RNode to make a block immediately
     return myNode.createBlock()
-  }).then(result => {
-    // Send back a response
-    res.end(JSON.stringify({message: result}))
+  }).then(_ => {
+    // Get the data from RNode
+    return myNode.listenForDataAtPublicName(ack)
+  }).then((blockResults) => {
+    // If no data is on RChain
+    if(blockResults.length === 0){
+      res.end(JSON.stringify({success: false}))
+      return
+    }
+    // Grab back the last message sent
+    var lastBlock = blockResults.slice(-1).pop()
+    var lastDatum = lastBlock.postBlockData.slice(-1).pop()
+    res.end(JSON.stringify(
+      // Rholang process should be a string literal
+      {success: true,
+       message: RHOCore.toRholang(lastDatum),
+     }))
   }).catch(oops => { console.log(oops); })
 })
 
@@ -49,8 +66,9 @@ app.post('/call', (req, res) => {
 
   // TODO this should be unforgeable. Can I make one from JS?
   let ack = Math.random().toString(36).substring(7)
-
-  let code = `@"${req.body.id}"!("${req.body.name}","${req.body.key}", "${ack}")`
+  //console.log(req.body)
+  let code = `@"rhobustFactory008"!("${req.body.id}","${req.body.uri}","sign","${req.body.name}","${req.body.key}", "${ack}")`
+  console.log(code)
   let deployData = {term: code,
                     timestamp: new Date().valueOf(),
                     phloLimit: 9999999,
