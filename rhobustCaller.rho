@@ -17,6 +17,8 @@ ackBoss,
 resBoss, 
 ackInfo,
 resInfo,
+ackRegister,
+resRegister,
 ack, 
 pay, 
 invoiceId, 
@@ -34,9 +36,14 @@ in {
     // This level of recursivity is only needed to simulate a sequential test.
     // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
     stdoutAck!("TEST : Creating sample rhobust contract", *ack) |
+    
     stdout!(["RhobustContract: ",*RhobustContract]) |
     RhobustContract!("new",[Nil,{"title": "sample rhobust contract v1.0", "data": true},*ackContract]) |
     for ( myContract <- ackContract) { 
+        myContract!("register", [*ackRegister]) |
+        for(resRegister <- ackRegister) {
+            stdout!(*resRegister)
+        }|
         myContract!("get", ["title", *ackInfo]) |
         for(resInfo <- ackInfo) {
             stdout!(*resInfo)
@@ -72,6 +79,7 @@ in {
         new RhobustContractChan, uriChan in {
             for( @RhobustContract <- this) {
                 if (RhobustContract.get("uri") != Nil ) {
+                    stdout!(["RhobustContract",RhobustContract.get("uri")]) |
                     ret!(RhobustContract.get("uri")) |
                     this!(RhobustContract)
                 } else {
