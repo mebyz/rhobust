@@ -27,7 +27,7 @@ app.listen(uiPort, () => {
 app.post('/register', (req, res) => {
 
   let ack = Math.random().toString(36).substring(7)
-  let code = `@"rhobustFactory008"!("${req.body.id}", ${req.body.n}, "${ack}")`
+  let code = `@"rhobustFactory012"!("${req.body.id}", ${req.body.n}, "${ack}")`
   console.log(code)
   let deployData = {term: code,
                     timestamp: new Date().valueOf(),
@@ -67,7 +67,7 @@ app.post('/call', (req, res) => {
   // TODO this should be unforgeable. Can I make one from JS?
   let ack = Math.random().toString(36).substring(7)
   //console.log(req.body)
-  let code = `@"rhobustFactory008"!("${req.body.id}","${req.body.uri}","sign","${req.body.name}","${req.body.key}", "${ack}")`
+  let code = `@"rhobustFactory012"!("${req.body.id}","${req.body.uri}","sign","${req.body.name}","${req.body.key}", "${ack}")`
   console.log(code)
   let deployData = {term: code,
                     timestamp: new Date().valueOf(),

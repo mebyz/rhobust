@@ -3,7 +3,7 @@
 new
 doubler,
   uriChan,
-  contractCh,ct,
+  contractCh,
 
 stdout(`rho:io:stdout`),
 ri(`rho:registry:insertArbitrary`), 
@@ -44,11 +44,11 @@ resProc_Boss,ackProc_Boss,
 ackwithdraw,
 acktaxPay,
 ackprocessIncomeTax,
-RhobustContractSign,ackRhobustContractSign
+RhobustContractSign,ackRhobustContractSign,ackPay
 in {
     
 
-    contract @"rhobustFactory008"(rhobustCreation, @n, result) = {
+    contract @"rhobustFactory012"(rhobustCreation, @n, result) = {
         new 
         ri(`rho:registry:insertArbitrary`), 
         rl(`rho:registry:lookup`) in {
@@ -74,7 +74,7 @@ in {
         }
     } |
 
-    contract @"rhobustFactory008"(rhobustLookup, @uri, @action, @name, @key, resultLookup) = {
+    contract @"rhobustFactory012"(rhobustLookup, @uri, @action, @name, @key, resultLookup) = {
 //        resultLookup!(uri)
         rl!(uri, *contractCh) |
         for( ct <- contractCh) {
@@ -94,7 +94,7 @@ in {
     new myRhobustContractTEST, myRhobustContract_Joe , myRhobustContract_Irs , myRhobustContract_Boss, ack,
     stdout(`rho:io:stdout`), stdoutAck(`rho:io:stdoutAck`) in {
       stdout!("TEST STEP 1 : Creating sample rhobust contract") | 
-      @"rhobustFactory008"!(*myRhobustContractTEST, 3, *ack) |
+      @"rhobustFactory012"!(*myRhobustContractTEST, 3, *ack) |
       for(@uri2 <- ack) {
         //stdout!(uri2) |
 
@@ -107,7 +107,7 @@ in {
         
         // Later on, agent A (Joe) logs in to sign the contract
         // this results in a lookup in the tuplespace using uri
-        @"rhobustFactory008"!(*myRhobustContract_Joe, uri2,"sign", "Joe","secretkey_employee", *ackJoe) |
+        @"rhobustFactory012"!(*myRhobustContract_Joe, uri2,"sign", "Joe","secretkey_employee", *ackJoe) |
         for(resJoe <- ackJoe) {
             stdout!(*resJoe) |
         
@@ -115,7 +115,7 @@ in {
             
             // Later on, agent B (irs) logs in to sign the contract
             // this results in a lookup in the tuplespace using uri
-            @"rhobustFactory008"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
+            @"rhobustFactory012"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
             for(resIrs <- ackIrs) {
                 stdout!(*resIrs) | 
                     
@@ -123,7 +123,7 @@ in {
                     
                 // Later on, agent C (boss) logs in to sign the contract
                 // this results in a lookup in the tuplespace using uri
-                @"rhobustFactory008"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
+                @"rhobustFactory012"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
                 for(resBoss <- ackBoss){
                     stdout!(*resBoss) 
                     
@@ -172,9 +172,11 @@ in {
     
         if (agentType == "boss" and secretKey == "secretkey_employer") {
             // agent A (Employer) has been identified
-            pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100)
-            |  // <- concurrent
-            logResolve!("Hello " ++ agentType ++ ", let's pay Joe. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackSign)
+            pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100,"Hello " ++ agentType ++ " you just paid Joe. transaction fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackPay)
+            |
+            for (@hs<- ackPay) {
+                ackSign!(hs)
+            }
         } else 
         if (agentType == "Joe" and secretKey == "secretkey_employee") {
             // agent B (Employee) has been identified
@@ -230,7 +232,7 @@ in {
     } |
 
     // agent A (Employer) behaviour : pay
-    contract pay(pId, pName, pAmount, @name,@amount) = {
+    contract pay(pId, pName, pAmount, @name,@amount,@message, ackEnd) = {
         new Y, H in {
         // generate new transaction hash key
         @"keccak256Hash"!(name.toByteArray(), *Y) 
@@ -240,6 +242,8 @@ in {
             | 
             // fullfill the payment (4 independent processes are spawned)
             pId!(H) | pName!(name) | pAmount!(amount) |
+
+            ackEnd!([H,message,name,amount]) |
             
             // when a payment occurs, these three actions are triggered .. CONCURRENTLY !!
             for(@paymentId <- invoiceId;@paymentName <- invoiceName;@amount <- invoiceAmount) {
