@@ -12,9 +12,9 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
             cb!(message)
         } |
         
-        // simple log method
-        contract logTransaction(@tid,@action,@nameWorker,@nameCurrentAgent,@amount,@message, cb) = {
-            cb!(["transaction id:",tid,"action:",action,"nameWorker:",nameWorker,"nameCurrentAgent:",nameCurrentAgent,"amount:",amount,"message:",message])
+        // simple log methodH, "payment", name, "employer", amount," << salary payed ! (AGENT A)"
+        contract logTransaction(@tid,@action,@nameWorker,@nameCurrentAgent,@amount,@message)= {
+            stdout!(["transaction id:",tid,"action:",action,"nameWorker:",nameWorker,"nameCurrentAgent:",nameCurrentAgent,"amount:",amount,"message:",message])
         } |
 
         // rhobust contract
@@ -23,7 +23,7 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
             //for(@oldCount <- countCh) {
                 if (agentType == "boss" and secretKey == "secretkey_employer") {
                     // agent A (Employer) has been identified
-                    pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100, *result)
+                    pay!(*invoiceId, *invoiceName, *invoiceAmount, "Joe", 100)
                     |  // <- concurrent
                     logResolve!("Hello " ++ agentType ++ ", let's pay Joe. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *result)
                 } else 
@@ -42,7 +42,6 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
 
         // when a payment occurs, these three actions are triggered .. CONCURRENTLY !!
         for(@paymentId <- invoiceId;@paymentName <- invoiceName;@amount <- invoiceAmount) {
-            
             // required inputs have matched ! the payment has been done.
             
             // agent B (Employee)
@@ -53,19 +52,19 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
             |  // <- concurrent         
             // agent C (Tax Services)
         	processIncomeTax!(paymentId, paymentName, amount/2, *ack)      
-        }|
+        } |
 
         // agent A (Employer) behaviour : pay
-        contract pay(pId, pName, pAmount, @name,@amount, result) = {
+        contract pay(pId, pName, pAmount, @name,@amount) = {
             new Y, H in {
+              // generate new transaction hash key
               @"keccak256Hash"!(name.toByteArray(), *Y) 
                 |  // <- concurrent key generation and key receiver channel creation
               for (@H <- Y) { // we have a key
-              	pId!(H) 
-              	|  // <- concurrent
-              	logTransaction!(H, "payment", name, "employer", amount," << salary payed ! (AGENT A)", *result)
-              }| 
-                pName!(name) | pAmount!(amount) | result!("ok") // fullfill the payment (3 independent processes are spawned)
+              	logTransaction!(H, "payment", name, "employer", amount," << salary payed ! (AGENT A)")
+              	| 
+                pId!(H) | pName!(name) | pAmount!(amount) // fullfill the payment (4 independent processes are spawned)
+              }
                 }
         } |
 
@@ -73,7 +72,8 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
         contract widthdraw(@uri,@name,@amount, result) = {
             new paymentIdLookupResponse in {
                 // todo : code the widthdraw of @amount salary 
-              	logTransaction!(uri, "withdraw", name, "employee", amount, " << got payment. can widthdraw ! (AGENT B)", *result)
+              	logTransaction!(uri, "withdraw", name, "employee", amount, " << got payment. can widthdraw ! (AGENT B)") |
+              	result!("ok")
             }
         }|
 
@@ -81,7 +81,8 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
         contract taxPay(@uri,@name,@amount, result) = {
             new taxPaymentOut in {
                 // todo : code the payment of @amount of taxes
-              	logTransaction!(uri, "tax_payment", name, "employee", amount, " << tax payed ! (AGENT B)", *result)
+              	logTransaction!(uri, "tax_payment", name, "employee", amount, " << tax payed ! (AGENT B)") |
+              	result!("ok")
             }
         }|
 
@@ -89,11 +90,12 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
         contract processIncomeTax(@uri,@name,@amount, result) = {
             new taxPaymentIn in {
                 // todo : code the income of @amount taxes 
-              	logTransaction!(uri, "tax_income", name, "IRS", amount, " << tax secured ! (AGENT C)", *result)
+              	logTransaction!(uri, "tax_income", name, "IRS", amount, " << tax secured ! (AGENT C)") |
+              	result!("ok")
             }
         }
     }
-}|
+} |
 
 // myRhobustContractTEST : test rhobustFactory101
 // This level of recursivity is only needed to simulate a sequential test.
