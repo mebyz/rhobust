@@ -1,6 +1,6 @@
 // emmanuel.botros@gmail.com
 
-contract @"rhobustFactory101"(rhobustContract, @n) = {
+contract @"rhobustFactory102"(rhobustContract, @n) = {
     new pay, invoiceId, invoiceAmount, invoiceName, processIncomeTax, widthdraw, taxPay,
     ri(`rho:registry:insertArbitrary`), 
     rl(`rho:registry:lookup`),
@@ -97,12 +97,12 @@ contract @"rhobustFactory101"(rhobustContract, @n) = {
     }
 } |
 
-// myRhobustContractTEST : test rhobustFactory101
+// myRhobustContractTEST : test rhobustFactory102
 // This level of recursivity is only needed to simulate a sequential test.
 // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
 new myRhobustContractTEST, ack, stdoutAck(`rho:io:stdoutAck`) in {
   stdoutAck!("TEST : Creating sample rhobust contract", *ack) | 
-  @"rhobustFactory101"!(*myRhobustContractTEST, 3) | 
+  @"rhobustFactory102"!(*myRhobustContractTEST, 3) | 
   for(_ <- ack) {
     myRhobustContractTEST!("Joe", "secretkey_employee", *ack) | 
     for(res <- ack) {

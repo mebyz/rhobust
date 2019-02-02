@@ -25,7 +25,7 @@ app.listen(uiPort, () => {
 
 // Handle users registering new rhobusts
 app.post('/register', (req, res) => {
-  let code = `@"rhobustFactory101"!("${req.body.id}", ${req.body.n})`
+  let code = `@"rhobustFactory102"!("${req.body.id}", ${req.body.n})`
   let deployData = {term: code,
                     timestamp: new Date().valueOf(),
                     phloLimit: 9999999,
