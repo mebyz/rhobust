@@ -1,69 +1,43 @@
 // emmanuel.botros@gmail.com
 
 new
-doubler,
-  uriChan,
-  contractCh,
-
 stdout(`rho:io:stdout`),
 ri(`rho:registry:insertArbitrary`), 
 rl(`rho:registry:lookup`),
 stdoutAck(`rho:io:stdoutAck`),
 RhobustContract,
 Object, 
-super,
-ackContract, 
-ackJoe,
-resJoe, 
-ackIrs,
-resIrs, 
-ackBoss,
-resBoss, 
-ackInfo,
-resInfo,
+contractCh,
+ackContract,  
+ackInfo,resInfo,
 ackRegister,
 resRegister,
-ackRl,
-resRl,
+ackRl,resRl,
 ack, 
-pay, 
-invoiceId, 
-invoiceAmount, 
-invoiceName, 
-processIncomeTax, 
-widthdraw, 
-taxPay, 
+pay, ackPay,
+invoiceId, invoiceAmount, invoiceName, 
+processIncomeTax, widthdraw, taxPay, 
 logResolve, 
-uriChan,
-uriChan2,
-uri2,
-logTransaction,resgettest,ackgettest,ct2,contractCh2,agentType,secretKey,
-resProc_Joe,ackProc_Joe,
-resProc_Irs,ackProc_Irs,
-resProc_Boss,ackProc_Boss,
-ackwithdraw,
-acktaxPay,
-ackprocessIncomeTax,
-RhobustContractSign,ackRhobustContractSign,ackPay
+uriChan, uriChan2, uri2,
+logTransaction,
+agentType,secretKey,
+ackwithdraw,acktaxPay,ackprocessIncomeTax,
+RhobustContractSign,ackRhobustContractSign
 in {
-    
-
-    contract @"rhobustFactory012"(rhobustCreation, @n, result) = {
+    contract @"RhobustFactory"(rhobustCreation, @n, result) = {
         new 
         ri(`rho:registry:insertArbitrary`), 
         rl(`rho:registry:lookup`) in {
         // store the contracts
         ri!(bundle+{*RhobustContract}  , *uriChan) |
-        // Wait for URI response
         for(@uri <- uriChan) {
             // lookup again using uri
             rl!(uri, *contractCh) |
             for( ct <- contractCh) {
-                ct!("new",[Nil,{"contract_id": uri, "data": true},*ackContract]) |
+                ct!("new",[{"contract_id": uri, "data": true},*ackContract]) |
                 for ( myContract <- ackContract) { 
                     // store the instance of the contract
                     ri!(bundle+{*myContract}  , *uriChan2) |
-                    // Wait for URI response
                     for(@uri2 <- uriChan2) {
                         // send back the final contract instance uri
                         result!(uri2)
@@ -74,12 +48,9 @@ in {
         }
     } |
 
-    contract @"rhobustFactory012"(rhobustLookup, @uri, @action, @name, @key, resultLookup) = {
-//        resultLookup!(uri)
+    contract @"RhobustFactory"(rhobustLookup, @uri, @action, @name, @key, resultLookup) = {
         rl!(uri, *contractCh) |
         for( ct <- contractCh) {
-           //resultLookup!(uri) 
-            //resultLookup!([ "OK", uri, action, name, key])
             RhobustContractSign!(name, key, *ackRhobustContractSign) | 
             for(@resRhobustContractSign <- ackRhobustContractSign) {
                 resultLookup!(resRhobustContractSign)
@@ -87,58 +58,9 @@ in {
         }
 
     } |
-
-    // TEST RhobustContracts
-    // This level of recursivity is only needed to simulate sequential actions of each agent
-    // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
-    new myRhobustContractTEST, myRhobustContract_Joe , myRhobustContract_Irs , myRhobustContract_Boss, ack,
-    stdout(`rho:io:stdout`), stdoutAck(`rho:io:stdoutAck`) in {
-      stdout!("TEST STEP 1 : Creating sample rhobust contract") | 
-      @"rhobustFactory012"!(*myRhobustContractTEST, 3, *ack) |
-      for(@uri2 <- ack) {
-        //stdout!(uri2) |
-
-        // uri2 is sent to all 3 agents.
-
-        // Agent A (Joe) stores uri2 in a safe place
-        // Agent B (IRS) stores uri2 in a safe place
-        // Agent C (boss) stores uri2 in a safe place
-
-        
-        // Later on, agent A (Joe) logs in to sign the contract
-        // this results in a lookup in the tuplespace using uri
-        @"rhobustFactory012"!(*myRhobustContract_Joe, uri2,"sign", "Joe","secretkey_employee", *ackJoe) |
-        for(resJoe <- ackJoe) {
-            stdout!(*resJoe) |
-        
-                
-            
-            // Later on, agent B (irs) logs in to sign the contract
-            // this results in a lookup in the tuplespace using uri
-            @"rhobustFactory012"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
-            for(resIrs <- ackIrs) {
-                stdout!(*resIrs) | 
-                    
-                    
-                    
-                // Later on, agent C (boss) logs in to sign the contract
-                // this results in a lookup in the tuplespace using uri
-                @"rhobustFactory012"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
-                for(resBoss <- ackBoss){
-                    stdout!(*resBoss) 
-                    
-                    // identification done for boss
-                    // + payment done (lots of thing happened)
-                    
-                    }
-                }
-            }
-        }
-    } |
     
     // class method to create a new RhobustContract
-    contract RhobustContract(@"new", @[ 
-        super, 
+    contract RhobustContract(@"new", @[
         propsMap,
         *return]) = { // return the address (name/channel) of the new RhobustContract Object
             new instance, ret in {
