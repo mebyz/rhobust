@@ -3,3 +3,4 @@ node_modules
 .rnode/casper-block-store/*
 .rnode/rnode.log
 package-lock.json
+**/.DS_Store

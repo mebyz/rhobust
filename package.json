@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "test": "rnode deploy --from 0x0 --nonce 0 --phlo-price 1 --phlo-limit 999999 integrationTest.rho && rnode propose",
-    "deploy-contract": "rnode deploy --from 0x0 --nonce 0 --phlo-price 1 --phlo-limit 999999 rhobustCaller.rho && rnode propose",
+    "link-contract": "rm -rf rhobustCaller.linked.rho && scala link.scala ./packages rhobustCaller.rho && mv rhobustCaller.rho.linked rhobustCaller.linked.rho",
+    "deploy-contract": "scala link.scala ./packages rhobustCaller.rho && mv rhobustCaller.rho.linked rhobustCaller.linked.rho && rnode deploy --from 0x0 --nonce 0 --phlo-price 1 --phlo-limit 999999 rhobustCaller.linked.rho && rnode propose",
     "with-nodemon": "nodemon server.js"
   },
   "keywords": [

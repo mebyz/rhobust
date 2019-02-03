@@ -1,5 +1,113 @@
-// emmanuel.botros@gmail.com
+    // emmanuel.botros@gmail.com
+/////////////////////////
+// myRhobustContractTEST : test rhobustFactory102
 
+new myRhobustContractTEST, ack, stdoutAck(`rho:io:stdoutAck`),
+ackJoe, resJoe, 
+ackIrs, resIrs, 
+ackBoss, resBoss,
+resProc_Joe,ackProc_Joe,
+resProc_Irs,ackProc_Irs,
+resProc_Boss,ackProc_Boss in {
+
+import MakeMint, TestSet in {
+  MakeMint!("mintA") | MakeMint!("mintB") |
+ |
+  for(mintA <- @"mintA"; mintB <- @"mintB") {
+    mintA!("makePurse", [100], "aliceAPurse") | mintB!("makePurse", [50], "bobBPurse") |
+    for(@aliceAPurse <- @"aliceAPurse"; @bobBPurse <- @"bobBPurse") {
+      TestSet!(
+        "Purses should be created with the given balance.",
+        [
+          [aliceAPurse, "getBalance", [], 100],
+          [bobBPurse, "getBalance", [], 50]
+        ]
+      ) |
+      @[*TestSet, "after"]!("Purses should be created with the given balance.", {
+        TestSet!( //cannot deposit tokens across different mints
+          "Cross-currency deposits should fail.",
+          [
+            [aliceAPurse, "deposit", [10, bobBPurse], false],
+            [bobBPurse, "deposit", [10, aliceAPurse], false],
+          ]
+        )
+      }) |
+      @[*TestSet, "after"]!("Cross-currency deposits should fail.", {
+        @aliceAPurse!("sprout", [], "bobAPurse") |
+        @bobBPurse!("sprout", [], "aliceBPurse") |
+        for(@aliceBPurse <- @"aliceBPurse"; @bobAPurse <- @"bobAPurse") {
+          TestSet!(
+            "Deposit should work as expected.",
+            [
+              [aliceBPurse, "deposit", [10, bobBPurse], true], //10 from Bob to Alice
+              [aliceBPurse, "getBalance", [], 10], //0 + 10 = 10
+              [bobBPurse, "getBalance", [], 40], // 50 - 10 = 40
+              
+              [bobAPurse, "deposit", [20, aliceAPurse], true], //20 from Alice to Bob
+              [bobAPurse, "getBalance", [], 20], //0 + 20 = 20
+              [aliceAPurse, "getBalance", [], 80], // 100 - 20 = 80
+              
+              [bobAPurse, "deposit", [30, aliceAPurse], true], //30 from Alice to Bob again
+              [bobAPurse, "getBalance", [], 50], //20 + 30 = 50
+              [aliceAPurse, "getBalance", [], 50], // 80 - 30 = 50
+            ]
+          )
+        }
+      })
+    }
+  } |
+  stdoutAck!("TEST : Creating sample rhobust contract. 3 agents (employer, employee, IRS)", *ack)
+    |  // <- concurrent (log test start)
+  // TEST RhobustContracts
+    // The level of recursivity shown in this test is needed to simulate sequential actions of each agent
+    // In real life, agents interact INDEPENDENTLY and sometimes CONCURRENTLY.
+    // in Rholang, concurrency is handled gracefully. this is why simulating sequencial actions is harder ^^
+    new myRhobustContractTEST, myRhobustContract_Joe , myRhobustContract_Irs , myRhobustContract_Boss, ack,
+    stdout(`rho:io:stdout`), stdoutAck(`rho:io:stdoutAck`) in {
+      stdout!("TEST STEP 1 : Creating sample rhobust contract") | 
+      @"RhobustFactory"!(*myRhobustContractTEST, 3, *ack) |
+      for(@uri2 <- ack) {
+        //stdout!(uri2) |
+
+        // uri2 is sent to all 3 agents.
+
+        // Agent A (Joe) stores uri2 in a safe place
+        // Agent B (IRS) stores uri2 in a safe place
+        // Agent C (boss) stores uri2 in a safe place
+
+        
+        // Later on, agent A (Joe) logs in to sign the contract
+        // this results in a lookup in the tuplespace using uri
+        @"RhobustFactory"!(*myRhobustContract_Joe, uri2,"sign", "Joe","secretkey_employee", *ackJoe) |
+        for(resJoe <- ackJoe) {
+            stdout!(*resJoe) |
+        
+                
+            
+            // Later on, agent B (irs) logs in to sign the contract
+            // this results in a lookup in the tuplespace using uri
+            @"RhobustFactory"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
+            for(resIrs <- ackIrs) {
+                stdout!(*resIrs) | 
+                    
+                    
+                    
+                // Later on, agent C (boss) logs in to sign the contract
+                // this results in a lookup in the tuplespace using uri
+                @"RhobustFactory"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
+                for(resBoss <- ackBoss){
+                    stdout!(*resBoss) 
+                    
+                    // identification done for boss
+                    // + payment done (lots of thing happened)
+                    
+                    }
+                }
+            }
+        }
+    }
+}
+} |
 new
 stdout(`rho:io:stdout`),
 ri(`rho:registry:insertArbitrary`), 
@@ -13,7 +121,7 @@ ackInfo,resInfo,
 ackRegister,
 resRegister,
 ackRl,resRl,
-ack, 
+ack, ackContractCh,
 pay, ackPay,
 invoiceId, invoiceAmount, invoiceName, 
 processIncomeTax, widthdraw, taxPay, 
@@ -49,9 +157,9 @@ in {
     } |
 
     contract @"RhobustFactory"(rhobustLookup, @uri, @action, @name, @key, resultLookup) = {
-        rl!(uri, *contractCh) |
-        for( ct <- contractCh) {
-            RhobustContractSign!(name, key, *ackRhobustContractSign) | 
+        rl!(uri, *ackContractCh) |
+        for( ctInstance <- ackContractCh) {
+            ctInstance!(name, key, *ackRhobustContractSign) | 
             for(@resRhobustContractSign <- ackRhobustContractSign) {
                 resultLookup!(resRhobustContractSign)
             }
@@ -219,4 +327,5 @@ in {
             result_processIncomeTax!("ok_processtax")
         }
     }
+}
 }

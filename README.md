@@ -38,9 +38,13 @@ Rhobust tries to address some of our societies deepest problems using Rchain, a 
 
 ```brew install rchain/rchain/rnode```
 
+```brew install scala```
+
 ```npm i```
 
 ```freshr```
+
+```npm run link-contract```
 
 ```npm run deploy-contract```
 
