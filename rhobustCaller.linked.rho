@@ -22,6 +22,7 @@ contract MakeMint(return) = {
                 
                 new thisPurse in {
                   contract @[*thisPurse, "decr"](@amount, success) = { balance!("sub", [amount], *success) } |
+                  contract @[*thisPurse, "incr"](@amount, success) = { balance!("addd", [amount], *success) } |
                   contract @[*thisPurse, "getBalance"](return) = { balance!("value", [], *return) } |
                   contract @[*thisPurse, "sprout"](return) = { @[*thisMint, "makePurse"]!(0, *return) } |
                   contract @[*thisPurse, "getDecr"](return) = { @seal!([*thisPurse, "decr"], *return) } |
@@ -45,6 +46,14 @@ contract MakeMint(return) = {
                         }
                       }
                     }
+                  } |
+                  contract @[*thisPurse, "directpayment"](@amount, src, success1,success2) = {
+                        balance!("dec", [amount], *success1) |
+                        src!("incr", [amount], *success2)
+                  } |
+                  contract @[*thisPurse, "directpay"](@amount, src, success1,success2) = {
+                        balance!("dec", [amount], *success1) |
+                        src!("add", [amount], *success2)
                   } |
                   contract thisPurse(@method, @input, return) = {
                     @[*RhoClass, "functionApply"]!([*thisPurse, method], input, *return)
@@ -73,6 +82,16 @@ contract NonNegativeNumber(@init, return) = {
             _ => { success!(false)  }
           }
         } |
+        contract @[*this, "dec"](@x, success) = {
+          match x >= 0 {
+            true => {
+              for(@v <- valueStore){
+                valueStore!(v - x) | success!(true)
+              }
+            }
+            _ => { success!(false)  }
+          }
+        } |
         contract @[*this, "sub"](@x, success) = {
           match x >= 0 {
             true => {
@@ -80,6 +99,21 @@ contract NonNegativeNumber(@init, return) = {
                 match x <= v {
                   true => {
                     valueStore!(v - x) | success!(true)
+                  }
+                  _ => { valueStore!(v) | success!(false) }
+                }
+              }
+            }
+            _ => { success!(false) }
+          }
+        } |
+        contract @[*this, "addd"](@x, success) = {
+          match x >= 0 {
+            true => {
+              for(@v <- valueStore) {
+                match x <= v {
+                  true => {
+                    valueStore!(v + x) | success!(true)
                   }
                   _ => { valueStore!(v) | success!(false) }
                 }
@@ -151,14 +185,56 @@ resProc_Joe,ackProc_Joe,
 resProc_Irs,ackProc_Irs,
 resProc_Boss,ackProc_Boss,
 aliceWalletBalance,bobWalletBalance,
-getMint, getPurse,getBalance in {
-MakeMint!(*getMint) | 
-for(@mint <- getMint) {
-            @[mint, "makePurse"]!(100, *getPurse)
-            | for (@purse <- getPurse) {
-                @[purse, "getBalance"]!(*getBalance)
-                | for(@balance <- getBalance) {
-                    stdout!(balance)
+getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getBalanceA,getBalanceAB,getBalanceB,getBalanceC,ccDep1 ,ccDep2 in {
+MakeMint!(*getMintA) | 
+MakeMint!(*getMintB) | 
+MakeMint!(*getMintC) | 
+for(@minta <- getMintA;@mintb <- getMintB;@mintc <- getMintC) {
+            @[minta, "makePurse"]!(101, *getPurseA)
+            | for (@pursea <- getPurseA) {
+                @[pursea, "getBalance"]!(*getBalanceA)
+                | for(@balancea <- getBalanceA) {
+                    stdout!(["A", balancea])
+                    |
+                    @[mintb, "makePurse"]!(102, *getPurseB)
+                    | for (@purseb <- getPurseB) {
+                        @[purseb, "getBalance"]!(*getBalanceB)
+                        | for(@balanceb <- getBalanceB) {
+                            stdout!(["B", balanceb]) |
+                            @[purseb, "directpayment"]!(10, pursea, *ccDep1, *ccDep2) |
+                            for(@r <- ccDep1;@r2 <- ccDep2) {
+                                
+                                
+                                
+                                match r {
+                                  true => { 
+                                    @[pursea, "getBalance"]!(*getBalanceA)
+                                    | for(@balancea <- getBalanceA) {
+                                        stdout!(["A'", balancea])
+                                    }
+                                  }
+                                } |
+                                match r2 {
+                                  true => { 
+                                    @[purseb, "getBalance"]!(*getBalanceB)
+                                    | for(@balanceb <- getBalanceB) {
+                                        stdout!(["B'", balanceb])
+                                    }
+                                  }
+                                } 
+                                
+                            } |
+                            @[mintc, "makePurse"]!(103, *getPurseC)
+                            | for (@pursec <- getPurseC) {
+                                @[pursec, "getBalance"]!(*getBalanceC)
+                                | for(@balancec <- getBalanceC) {
+                                    stdout!(["C'", balancec]) 
+                                }
+                                
+                            }
+                        }
+                        
+                    }
                 }
                 
             }

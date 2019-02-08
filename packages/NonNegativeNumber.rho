@@ -13,6 +13,16 @@ export NonNegativeNumber in {
             _ => { success!(false)  }
           }
         } |
+        contract @[*this, "dec"](@x, success) = {
+          match x >= 0 {
+            true => {
+              for(@v <- valueStore){
+                valueStore!(v - x) | success!(true)
+              }
+            }
+            _ => { success!(false)  }
+          }
+        } |
         contract @[*this, "sub"](@x, success) = {
           match x >= 0 {
             true => {
@@ -20,6 +30,21 @@ export NonNegativeNumber in {
                 match x <= v {
                   true => {
                     valueStore!(v - x) | success!(true)
+                  }
+                  _ => { valueStore!(v) | success!(false) }
+                }
+              }
+            }
+            _ => { success!(false) }
+          }
+        } |
+        contract @[*this, "addd"](@x, success) = {
+          match x >= 0 {
+            true => {
+              for(@v <- valueStore) {
+                match x <= v {
+                  true => {
+                    valueStore!(v + x) | success!(true)
                   }
                   _ => { valueStore!(v) | success!(false) }
                 }
