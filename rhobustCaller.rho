@@ -64,7 +64,7 @@ getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getPurseD,getBalanceA,
             for(resJoe <- ackJoe) {
                 stdout!(*resJoe) |
             
-                // Later on, agent B (irs) logs in to sign the contract
+                // Later on, agent D (coop) logs in to sign the contract
                 // this results in a lookup in the tuplespace using uri
                 @"RhobustFactorySign"!(*myRhobustContract_Coop, uri2,"sign",  "coop","secretkey_coop", *ackCoop) |
                 for(resCoop <- ackCoop) {
