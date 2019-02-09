@@ -10,11 +10,14 @@ new myRhobustContractTEST, myRhobustContract_Joe , myRhobustContract_Irs , myRho
 ackJoe, resJoe, 
 ackIrs, resIrs, 
 ackBoss, resBoss,
+ackCoop, resCoop,
+myRhobustContract_Coop,
 resProc_Joe,ackProc_Joe,
 resProc_Irs,ackProc_Irs,
 resProc_Boss,ackProc_Boss,
+resProc_coop,ackProc_Coop,
 aliceWalletBalance,bobWalletBalance,
-getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getBalanceA,getBalanceAB,getBalanceB,getBalanceC,ccDep1 ,ccDep2,ackBoss2 in {
+getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getPurseD,getBalanceA,getBalanceAB,getBalanceB,getBalanceC,getBalanceD,ccDep1 ,ccDep2,ccDep3 ,ccDep4,ccDep5 ,ccDep6,ackBoss2 in {
 
     // TEST RhobustContracts
     // The level of recursivity shown in this test is needed to simulate sequential actions of each agent
@@ -24,10 +27,11 @@ getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getBalanceA,getBalance
     @"RhobustFactory"!(*ack) |
     for(@uri2 <- ack) {
 
-        @"RhobustContractorFactory"!("Joe", 10000, *getPurseA) |
-        @"RhobustContractorFactory"!("boss",10000, *getPurseB) |
-        @"RhobustContractorFactory"!("irs", 10000, *getPurseC) |
-        for (@purseJoe <- getPurseA;@purseBoss <- getPurseB;@purseIrs <- getPurseC) {
+        @"RhobustContractorFactory"!({"uri":uri2,"name:":"Joe", "amount": 10000}, *getPurseA) |
+        @"RhobustContractorFactory"!({"uri":uri2,"name:":"boss", "amount": 10000}, *getPurseB) |
+        @"RhobustContractorFactory"!({"uri":uri2,"name:":"irs", "amount": 10000}, *getPurseC) |
+        @"RhobustContractorFactory"!({"uri":uri2,"name:":"coop", "amount": 10}, *getPurseD) |
+        for (@purseJoe <- getPurseA;@purseBoss <- getPurseB;@purseIrs <- getPurseC;@purseCoop <- getPurseD) {
             //purse check..
             @[purseJoe, "getBalance"]!(*getBalanceA)
             | for(@balanceJoe <- getBalanceA) {
@@ -41,12 +45,17 @@ getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getBalanceA,getBalance
             | for(@balanceBoss <- getBalanceC) {
                 stdout!(["boss BEFORE", balanceBoss])
             } |
+            @[purseCoop, "getBalance"]!(*getBalanceD)
+            | for(@balanceCoop <- getBalanceD) {
+                stdout!(["coop BEFORE", balanceCoop])
+            } |
             
             // uri2 is sent to all 3 agents.
 
             // Agent A (Joe) stores uri2 in a safe place
             // Agent B (IRS) stores uri2 in a safe place
             // Agent C (boss) stores uri2 in a safe place
+            // Agent D (coop) stores uri2 in a safe place
 
             
             // Later on, agent A (Joe) logs in to sign the contract
@@ -57,38 +66,50 @@ getMintA,getMintB,getMintC, getPurseA,getPurseB,getPurseC,getBalanceA,getBalance
             
                 // Later on, agent B (irs) logs in to sign the contract
                 // this results in a lookup in the tuplespace using uri
-                @"RhobustFactorySign"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
-                for(resIrs <- ackIrs) {
-                    stdout!(*resIrs) |
-              
-                    // Later on, agent C (boss) logs in to sign the contract
+                @"RhobustFactorySign"!(*myRhobustContract_Coop, uri2,"sign",  "coop","secretkey_coop", *ackCoop) |
+                for(resCoop <- ackCoop) {
+                    stdout!(*resCoop) |
+                
+                    // Later on, agent B (irs) logs in to sign the contract
                     // this results in a lookup in the tuplespace using uri
+                    @"RhobustFactorySign"!(*myRhobustContract_Irs, uri2,"sign",  "irs","secretkey_irs", *ackIrs) |
+                    for(resIrs <- ackIrs) {
+                        stdout!(*resIrs) |
+                
+                        // Later on, agent C (boss) logs in to sign the contract
+                        // this results in a lookup in the tuplespace using uri
 
-                    // identify
-                    @"RhobustFactorySign"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
-                    for(resBoss <- ackBoss){
+                        // identify
+                        @"RhobustFactorySign"!(*myRhobustContract_Boss, uri2,"sign",  "boss","secretkey_employer", *ackBoss) |
+                        for(resBoss <- ackBoss){
 
-                        // pay
-                        @"RhobustFactoryPay"!(*myRhobustContract_Boss, uri2,"pay",  "boss","secretkey_employer", 5500, purseBoss, purseJoe, purseIrs, *ackBoss2) |
-                        
-                        for(@res2<-ackBoss2) {
-                            stdout!(res2.get("c")) |
+                            // pay
+                            @"RhobustFactoryPay"!(*myRhobustContract_Boss, uri2,"pay",  "boss","secretkey_employer", 5500, purseBoss, purseJoe, purseIrs, purseCoop, *ackBoss2) |
                             
-                            // CHECK BALANCES
-        
-                            @[purseJoe, "getBalance"]!(*getBalanceA)
-                            | for(@balanceJoe <- getBalanceA) {
-                                stdout!(["Joe  AFTER", balanceJoe])
-                            }
-                            |
-                            @[purseBoss, "getBalance"]!(*getBalanceB)
-                            | for(@balanceBoss <- getBalanceB) {
-                                stdout!(["boss AFTER", balanceBoss])
-                            }
-                            |
-                            @[purseIrs, "getBalance"]!(*getBalanceC)
-                            | for(@balanceIrs <- getBalanceC) {
-                                stdout!(["irs  AFTER", balanceIrs])
+                            for(@res2<-ackBoss2) {
+                                stdout!(res2.get("c")) |
+                                
+                                // CHECK BALANCES
+            
+                                @[purseJoe, "getBalance"]!(*getBalanceA)
+                                | for(@balanceJoe <- getBalanceA) {
+                                    stdout!(["Joe  AFTER", balanceJoe])
+                                }
+                                |
+                                @[purseBoss, "getBalance"]!(*getBalanceB)
+                                | for(@balanceBoss <- getBalanceB) {
+                                    stdout!(["boss AFTER", balanceBoss])
+                                }
+                                |
+                                @[purseIrs, "getBalance"]!(*getBalanceC)
+                                | for(@balanceIrs <- getBalanceC) {
+                                    stdout!(["irs  AFTER", balanceIrs])
+                                }
+                                |
+                                @[purseCoop, "getBalance"]!(*getBalanceD)
+                                | for(@balanceCoop <- getBalanceD) {
+                                    stdout!(["coop  AFTER", balanceCoop])
+                                }
                             }
                         }
                     }
@@ -123,7 +144,7 @@ agentType,secretKey,
 ackwithdraw,acktaxPay,ackprocessIncomeTax,
 RhobustContractSign,ackRhobustContractSign,
 RhobustContractPay,ackRhobustContractPay,
-uriPChan,getPurse,mint, p1, p2,ccDep1,ccDep2,sccDep1,sccDep2
+uriPChan,getPurse,mint, p1, p2,ccDep1,ccDep2,sccDep1,sccDep2,sccDep3,sccDep4,sccDep5,sccDep6,sccDep7,sccDep8
 in {
     
     contract @"RhobustFactory"(result) = {
@@ -150,8 +171,8 @@ in {
         }
     } |
 
-    contract @"RhobustContractorFactory"(@name,@amount, result) = {
-        RhobustContractor!("new",amount,[{"name": name, "starting_balance": amount, "data": true},*result])
+    contract @"RhobustContractorFactory"(@props, result) = {
+        RhobustContractor!("new",props.get("amount"),[{"contract_uri": props.get("uri"), "name": props.get("name"), "starting_balance": props.get("amount"), "data": true},*result])
 
     } |
 
@@ -167,11 +188,11 @@ in {
 
     } | 
 
-    contract @"RhobustFactoryPay"(rhobustLookup, @uri, @action, @name, @key,@amount,p1,p2,p3, resultLookup) = {
+    contract @"RhobustFactoryPay"(rhobustLookup, @uri, @action, @name, @key,@amount,p1,p2,p3,p4, resultLookup) = {
         
         rl!(uri, *contractCh) |
         for( ct <- contractCh) {
-            RhobustContractPay!(name, key, amount,*p1,*p2,*p3, *ackRhobustContractPay) |
+            RhobustContractPay!(name, key, amount,*p1,*p2,*p3,*p4, *ackRhobustContractPay) |
             for(@resRhobustContractPay <- ackRhobustContractPay) {
                 resultLookup!(resRhobustContractPay)
             }
@@ -254,11 +275,11 @@ in {
     } |
 
     // PAY using RhobustContract
-    contract RhobustContractPay(@agentType, @secretKey, @amount, p1, p2,p3, ackSign) = {
+    contract RhobustContractPay(@agentType, @secretKey, @amount, p1, p2,p3,p4, ackSign) = {
     
         if (agentType == "boss" and secretKey == "secretkey_employer") {
             // agent (Employer) has been identified
-            pay!(*p1, *p2,*p3,*invoiceId, *invoiceName, *invoiceAmount, "Joe", amount ,"Hello " ++ agentType ++ " you just paid Joe. transaction fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackPay)| 
+            pay!(*p1, *p2,*p3,*p4,*invoiceId, *invoiceName, *invoiceAmount, "Joe", amount ,"Hello " ++ agentType ++ " you just paid Joe. transaction fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackPay)| 
             for (@aa <- ackPay) {
                 ackSign!(aa)
             }
@@ -274,6 +295,10 @@ in {
         
         } else 
         if (agentType == "Joe" and secretKey == "secretkey_employee") {
+            // agent (Employee) has been identified
+            logResolve!("Hello " ++ agentType ++ ", you will get payed soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackSign)
+        }  else 
+        if (agentType == "coop" and secretKey == "secretkey_coop") {
             // agent (Employee) has been identified
             logResolve!("Hello " ++ agentType ++ ", you will get payed soon. transaction will be fullfiled using your key ${secretKey}" %% {"secretKey": secretKey}, *ackSign)
         }  else 
@@ -327,7 +352,7 @@ in {
     } |
 
     // agent A (Employer) behaviour : pay
-    contract pay(p1, p2, p3, pId, pName, pAmount, @name,@amount,@message, ackEnd) = {
+    contract pay(p1, p2, p3, p4, pId, pName, pAmount, @name,@amount,@message, ackEnd) = {
         new Y, H in {
         // generate new transaction hash key
         @"keccak256Hash"!(name.toByteArray(), *Y) 
@@ -346,9 +371,20 @@ in {
                         
                         // agent B (Employee) pays his taxes
                         @[*p2, "directpayment"]!(amount/2, *p3, *sccDep1, *sccDep2) |
-                        for (@aas <- sccDep1; @bbs <- sccDep2) {
-                            ackEnd!({"a":aas,"b":bbs,"c":H})
-                        }
+                        
+                        // agent A  pays Coop
+                        @[*p1, "directpayment"]!(1, *p4, *sccDep3, *sccDep4) |
+                        
+                        // agent B  pays Coop
+                        @[*p2, "directpayment"]!(1, *p4, *sccDep5, *sccDep6) |
+                        
+                        // agent C  pays Coop
+                        @[*p3, "directpayment"]!(1, *p4, *sccDep7, *sccDep8) |
+                        
+                        for (@a1 <- sccDep1; @b2 <- sccDep2;@c3 <- sccDep3; @d4 <- sccDep4;@e5 <- sccDep5; @f6 <- sccDep6;@g7 <- sccDep7; @h8 <- sccDep8) {
+                            ackEnd!({"a":a1,"b":b2,"c":H})
+                        } 
+                        
                     }
                 }
             }
